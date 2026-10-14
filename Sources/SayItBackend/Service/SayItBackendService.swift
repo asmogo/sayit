@@ -183,9 +183,11 @@ public final class SayItBackendService: SayItService {
         if let synthesizer {
             resolvedSynthesizer = synthesizer
         } else {
-            resolvedSynthesizer = SynthesisActor { id in
-                await manager.installedURL(for: id)
-            }
+            resolvedSynthesizer = SynthesisActor(
+                modelURLProvider: { id in
+                    await manager.installedURL(for: id)
+                }
+            )
         }
         self.synthesizer = resolvedSynthesizer
         audioArchive = AudioArchive(directory: directories.historyAudio)

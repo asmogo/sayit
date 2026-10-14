@@ -2479,6 +2479,15 @@ private final class ServiceFixture {
         try JSONEncoder.sayIt.encode(installation).write(
             to: directory.appending(path: "installation.json")
         )
+        // These service tests mock synthesis, but preset resolution still
+        // checks that the declared voice files exist with their expected size.
+        for file in model.files where file.path.hasPrefix("voices/") {
+            let url = directory.appending(path: file.path)
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(), withIntermediateDirectories: true
+            )
+            try Data(count: Int(file.byteCount)).write(to: url)
+        }
     }
 
     func seedRecording(id: UUID, duration: Double) async throws {

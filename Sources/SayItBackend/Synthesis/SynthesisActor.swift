@@ -598,7 +598,8 @@ actor SynthesisActor: BackendSpeechSynthesizing {
     ) async throws {
         try checkOperation(operationID)
         if loadedModelID != model.id {
-            releaseLoadedModel()
+            await releaseLoadedModel()
+            try checkOperation(operationID)
         }
         guard loadedModel == nil else { return }
         let modelURL = await modelURLProvider(model.id)
@@ -610,6 +611,8 @@ actor SynthesisActor: BackendSpeechSynthesizing {
         let candidate: SpeechGenerationModel
         do {
             switch model.modelType.lowercased() {
+            case "fish_omni":
+                candidate = try await Drama3Model.fromDirectory(modelURL)
             case "omnivoice":
                 let hubCache = ProcessInfo.processInfo.environment[
                     "HF_HUB_CACHE"
@@ -751,8 +754,16 @@ actor SynthesisActor: BackendSpeechSynthesizing {
         request: SpeechRequest,
         model: SpeechGenerationModel
     ) async throws -> [SpeechChunk] {
-        guard let loadedTextProcessor else { return [chunk] }
         let modelType = request.model.modelType.lowercased()
+        if modelType == "fish_omni" {
+            // Drama 3 generates at most ~28 seconds per take. Keep its text
+            // budget in UTF-8 bytes, as the reference implementation does.
+            return try chunker.fittingPieces(for: chunk) { text in
+                try Task.checkCancellation()
+                return text.utf8.count <= 300
+            }
+        }
+        guard let loadedTextProcessor else { return [chunk] }
         switch modelType {
         case "kokoro", "kokoro_tts":
             let language = request.language
@@ -925,12 +936,12 @@ actor SynthesisActor: BackendSpeechSynthesizing {
         }
     }
 
-    private func releaseLoadedModel(ifCurrent operationID: UInt64) {
+    private func releaseLoadedModel(ifCurrent operationID: UInt64) async {
         guard operationID == operationGeneration else { return }
-        releaseLoadedModel()
+        await releaseLoadedModel()
     }
 
-    private func releaseLoadedModel() {
+    private func releaseLoadedModel() async {
         guard loadedModel != nil || retainedReferenceAudio != nil else {
             loadedModelID = nil
             loadedTextProcessor = nil

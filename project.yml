@@ -115,6 +115,8 @@ targets:
         product: MLXAudioCore
       - package: MLXAudio
         product: MLXAudioTTS
+      - package: MLXAudio
+        product: MLXAudioCodecs
     settings:
       base:
         DEFINES_MODULE: true
@@ -350,6 +352,8 @@ targets:
         product: MLXAudioCore
       - package: MLXAudio
         product: MLXAudioTTS
+      - package: MLXAudio
+        product: MLXAudioCodecs
       - package: ArgumentParser
         product: ArgumentParser
     settings:

@@ -63,6 +63,12 @@ actor CommunityModelResolver {
             throw ModelManagerError.modelUnavailable
         }
 
+        if rawType == "fish_omni",
+           config["quantization"] == nil
+            || !metadata.siblings.contains(where: { $0.rfilename == "codec.safetensors" }) {
+            throw ModelManagerError.modelUnavailable
+        }
+
         let diskBytes = metadata.siblings.reduce(Int64(0)) {
             $0 + ($1.lfs?.size ?? $1.size ?? 0)
         }
@@ -106,11 +112,18 @@ actor CommunityModelResolver {
             capabilities: ModelCapabilities(
                 presetVoices: defaultVoice != nil,
                 voiceDescription: voiceDesign,
-                voiceCloning: referenceOnly,
+                voiceCloning: referenceOnly || rawType == "fish_omni",
                 streaming: progressive,
                 longForm: true,
-                languageSelection: true,
-                requiresReferenceAudio: referenceOnly
+                languageSelection: rawType != "fish_omni",
+                requiresReferenceAudio: referenceOnly,
+                voiceDiscovery: rawType == "fish_omni" ? true : nil,
+                randomVoiceSampling: rawType == "fish_omni" ? true : nil,
+                voiceCloneRequirements: rawType == "fish_omni" ? .init(
+                    minimumDuration: 3, recommendedMinimumDuration: 5,
+                    recommendedMaximumDuration: 15, maximumDuration: 30,
+                    transcriptRequired: true
+                ) : nil
             ),
             playbackMode: progressive ? .progressive : .buffered,
             files: [],
@@ -124,7 +137,8 @@ actor CommunityModelResolver {
                 requiresAcceptance: true
             ),
             stability: referenceOnly ? .unavailable : .experimental,
-            testedMLXAudioVersion: "0.1.3",
+            testedMLXAudioVersion: rawType == "fish_omni"
+                ? "bf14ae0 + SayIt native Drama 3" : "0.1.3",
             testedDate: "Community model — not tested"
         )
     }
@@ -141,6 +155,12 @@ actor CommunityModelResolver {
                 ?? config["model_version"] as? String
         )?.lowercased(),
         SupportedModelTypes.all.contains(rawType) else {
+            throw ModelManagerError.modelUnavailable
+        }
+
+        if rawType == "fish_omni",
+           config["quantization"] == nil
+            || !FileManager.default.fileExists(atPath: directory.appending(path: "codec.safetensors").path) {
             throw ModelManagerError.modelUnavailable
         }
 
@@ -211,11 +231,18 @@ actor CommunityModelResolver {
             capabilities: ModelCapabilities(
                 presetVoices: defaultVoice != nil,
                 voiceDescription: voiceDesign,
-                voiceCloning: referenceOnly,
+                voiceCloning: referenceOnly || rawType == "fish_omni",
                 streaming: progressive,
                 longForm: true,
-                languageSelection: true,
-                requiresReferenceAudio: referenceOnly
+                languageSelection: rawType != "fish_omni",
+                requiresReferenceAudio: referenceOnly,
+                voiceDiscovery: rawType == "fish_omni" ? true : nil,
+                randomVoiceSampling: rawType == "fish_omni" ? true : nil,
+                voiceCloneRequirements: rawType == "fish_omni" ? .init(
+                    minimumDuration: 3, recommendedMinimumDuration: 5,
+                    recommendedMaximumDuration: 15, maximumDuration: 30,
+                    transcriptRequired: true
+                ) : nil
             ),
             playbackMode: progressive ? .progressive : .buffered,
             files: [],
@@ -229,7 +256,8 @@ actor CommunityModelResolver {
                 requiresAcceptance: true
             ),
             stability: referenceOnly ? .unavailable : .experimental,
-            testedMLXAudioVersion: "0.1.3",
+            testedMLXAudioVersion: rawType == "fish_omni"
+                ? "bf14ae0 + SayIt native Drama 3" : "0.1.3",
             testedDate: "Local model — not tested"
         )
     }

@@ -30,6 +30,8 @@ stay on your Mac.
   [Chatterbox](https://huggingface.co/mlx-community/Chatterbox-TTS-fp16), and
   [OmniVoice](https://huggingface.co/mlx-community/OmniVoice). Compatible
   community models can be added by Hugging Face repository ID.
+- **Experimental Drama 3.** The Q4 and Q8 MLX conversions run natively in Swift
+  on your Mac. See [details and memory requirements](docs/drama3.md).
 - **Create voices.** Models expose the features they support, from built-in
   voices and voice descriptions to random voice discovery and voice cloning.
 - **Efficient model loading.** Only one model is kept in memory, and it is

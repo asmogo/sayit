@@ -5,6 +5,38 @@ import Testing
 
 @Suite("Community model resolution", .serialized)
 struct CommunityModelResolverTests {
+    @Test("Drama 3 accepts converted weights and rejects the original checkpoint")
+    func resolvesDrama3Conversion() async throws {
+        for converted in [false, true] {
+            let session = makeStubSession { request in
+                if request.url?.path.hasPrefix("/api/models/") == true {
+                    return try response(request: request, json: [
+                        "sha": String(repeating: "a", count: 40),
+                        "siblings": [["rfilename": "codec.safetensors", "size": 100]],
+                        "cardData": [:]
+                    ])
+                }
+                var config: [String: Any] = ["model_type": "fish_omni"]
+                if converted { config["quantization"] = ["bits": 4] }
+                return try response(request: request, json: config)
+            }
+            let resolver = CommunityModelResolver(session: session)
+            if converted {
+                let model = try await resolver.resolve(repository: "owner/model", revision: nil, token: nil)
+                #expect(model.isSelectable)
+                #expect(model.capabilities.voiceCloning)
+                #expect(model.capabilities.voiceCloneRequirements?.transcriptRequired == true)
+                #expect(!model.capabilities.languageSelection)
+                #expect(model.playbackMode == .buffered)
+            } else {
+                await #expect(throws: ModelManagerError.self) {
+                    try await resolver.resolve(repository: "owner/model", revision: nil, token: nil)
+                }
+            }
+        }
+        #expect(!SupportedModelTypes.areCompatible("fish_omni", "fish_qwen3_omni"))
+    }
+
     @Test("Remote Kokoro metadata becomes a progressive selectable model")
     func resolvesRemoteKokoroModel() async throws {
         let session = makeStubSession { request in

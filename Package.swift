@@ -76,7 +76,8 @@ let package = Package(
                 "SayItCore",
                 "SayItProtocol",
                 .product(name: "MLXAudioCore", package: "mlx-audio-swift"),
-                .product(name: "MLXAudioTTS", package: "mlx-audio-swift")
+                .product(name: "MLXAudioTTS", package: "mlx-audio-swift"),
+                .product(name: "MLXAudioCodecs", package: "mlx-audio-swift")
             ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
@@ -176,7 +177,8 @@ let package = Package(
                 "SayItProtocol",
                 "SayItXPC",
                 .product(name: "MLXAudioCore", package: "mlx-audio-swift"),
-                .product(name: "MLXAudioTTS", package: "mlx-audio-swift")
+                .product(name: "MLXAudioTTS", package: "mlx-audio-swift"),
+                .product(name: "MLXAudioCodecs", package: "mlx-audio-swift")
             ],
             resources: [
                 .process("Resources")
@@ -219,6 +221,7 @@ let package = Package(
         .testTarget(
             name: "SayItBackendTests",
             dependencies: ["SayItBackend", "SayItProtocol"],
+            exclude: ["Fixtures"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]

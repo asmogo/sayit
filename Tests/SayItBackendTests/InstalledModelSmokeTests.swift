@@ -94,9 +94,11 @@ struct InstalledModelSmokeTests {
         let modelURL = modelsRootURL
             .appending(path: model.id.rawValue, directoryHint: .isDirectory)
             .appending(path: model.revision, directoryHint: .isDirectory)
-        let synthesizer = SynthesisActor { requestedID in
-            requestedID == model.id ? modelURL : nil
-        }
+        let synthesizer = SynthesisActor(
+            modelURLProvider: { requestedID in
+                requestedID == model.id ? modelURL : nil
+            }
+        )
         let voiceReference = auditValue(
             "SAYIT_MODEL_AUDIT_REFERENCE",
             in: environment
