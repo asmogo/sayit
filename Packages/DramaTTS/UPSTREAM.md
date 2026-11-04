@@ -5,6 +5,8 @@ Revision: 338c0bc8794ada080ffbf7f492a8b4044f31f709 (v3.2.1).
 
 Only DramaTTS and its dependency-free SpeechSynthesizer target are included.
 The package manifest omits unrelated engines and pins the evaluated MLX versions.
+It shares MLX Audio's Transformers product rather than linking the Tokenizers
+product separately, avoiding duplicate tokenizer classes in the Xcode app bundle.
 Original MIT notices are preserved. This is not an independently developed model port.
 
 Local patch: WeightLoading maps cguldogan fish_omni backbone keys and moves the

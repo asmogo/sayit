@@ -18,7 +18,7 @@ let package = Package(
             .product(name: "MLXNN", package: "mlx-swift"),
             .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
             .product(name: "MLXAudioCodecs", package: "mlx-audio-swift"),
-            .product(name: "Tokenizers", package: "swift-transformers")]),
+            .product(name: "Transformers", package: "swift-transformers")]),
         .testTarget(name: "DramaTTSTests", dependencies: ["DramaTTS", "SpeechSynthesizer",
             .product(name: "MLX", package: "mlx-swift"),
             .product(name: "MLXNN", package: "mlx-swift")], resources: [.copy("Fixtures")])
