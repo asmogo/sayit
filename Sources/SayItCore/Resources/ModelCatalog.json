@@ -1284,7 +1284,7 @@
         "presetVoices": false,
         "voiceDescription": false,
         "voiceCloning": true,
-        "streaming": false,
+        "streaming": true,
         "longForm": true,
         "languageSelection": false,
         "requiresReferenceAudio": false,
@@ -1298,7 +1298,7 @@
           "transcriptRequired": true
         }
       },
-      "playbackMode": "buffered",
+      "playbackMode": "adaptive",
       "files": [],
       "estimatedDiskBytes": 25888559494,
       "estimatedPeakMemoryBytes": 32000000000,
@@ -1310,8 +1310,8 @@
         "requiresAcceptance": true
       },
       "stability": "experimental",
-      "testedMLXAudioVersion": "bf14ae0 + SayIt native Drama 3",
-      "testedDate": "2026-10-14",
+      "testedMLXAudioVersion": "0.1.5 + DramaTTS 3.2.1",
+      "testedDate": "2026-11-04",
       "experience": {
         "recommendationRank": 18,
         "size": "large",
@@ -1420,7 +1420,7 @@
         "presetVoices": false,
         "voiceDescription": false,
         "voiceCloning": true,
-        "streaming": false,
+        "streaming": true,
         "longForm": true,
         "languageSelection": false,
         "requiresReferenceAudio": false,
@@ -1434,7 +1434,7 @@
           "transcriptRequired": true
         }
       },
-      "playbackMode": "buffered",
+      "playbackMode": "adaptive",
       "files": [],
       "estimatedDiskBytes": 41994686721,
       "estimatedPeakMemoryBytes": 50000000000,
@@ -1446,8 +1446,8 @@
         "requiresAcceptance": true
       },
       "stability": "experimental",
-      "testedMLXAudioVersion": "bf14ae0 + SayIt native Drama 3",
-      "testedDate": "2026-10-14",
+      "testedMLXAudioVersion": "0.1.5 + DramaTTS 3.2.1",
+      "testedDate": "Not runtime-tested",
       "experience": {
         "recommendationRank": 19,
         "size": "large",

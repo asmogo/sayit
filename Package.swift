@@ -23,10 +23,11 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "Packages/PlaybackDSP"),
+        .package(path: "Packages/DramaTTS"),
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6"),
         .package(
             url: "https://github.com/Blaizzy/mlx-audio-swift.git",
-            revision: "bf14ae0c26e4e85553dd989571cae29d70fa6735"
+            exact: "0.1.5"
         ),
         .package(
             url: "https://github.com/apple/swift-openapi-generator",
@@ -54,6 +55,15 @@ let package = Package(
         )
     ],
     targets: [
+        .testTarget(
+            name: "DramaLibraryValidationTests",
+            dependencies: [
+                .product(name: "DramaTTS", package: "DramaTTS"),
+                .product(name: "SpeechSynthesizer", package: "DramaTTS")
+            ],
+            path: "Packages/DramaTTS/Tests/DramaTTSTests",
+            resources: [.copy("Fixtures")]
+        ),
         .target(
             name: "SayItProtocol",
             swiftSettings: [
@@ -73,6 +83,8 @@ let package = Package(
             name: "SayItBackend",
             dependencies: [
                 .product(name: "PlaybackDSP", package: "PlaybackDSP"),
+                .product(name: "DramaTTS", package: "DramaTTS"),
+                .product(name: "SpeechSynthesizer", package: "DramaTTS"),
                 "SayItCore",
                 "SayItProtocol",
                 .product(name: "MLXAudioCore", package: "mlx-audio-swift"),
@@ -221,7 +233,6 @@ let package = Package(
         .testTarget(
             name: "SayItBackendTests",
             dependencies: ["SayItBackend", "SayItProtocol"],
-            exclude: ["Fixtures"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]

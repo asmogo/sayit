@@ -289,6 +289,13 @@ actor SynthesisActor: BackendSpeechSynthesizing {
         operationID: UInt64,
         continuation: AsyncThrowingStream<SynthesisEvent, Error>.Continuation
     ) async throws {
+        let requestStarted = ContinuousClock.now
+        func recordTiming(_ phase: SynthesisTiming.Phase, since start: ContinuousClock.Instant) {
+            let duration = start.duration(to: .now)
+            continuation.yield(.timing(SynthesisTiming(phase: phase,
+                duration: Double(duration.components.seconds)
+                    + Double(duration.components.attoseconds) / 1e18)))
+        }
         try checkOperation(operationID)
         if loadedModelID != request.model.id || loadedModel == nil {
             continuation.yield(.loadingModel(request.model.id))
@@ -299,6 +306,8 @@ actor SynthesisActor: BackendSpeechSynthesizing {
             try checkOperation(operationID)
             continuation.yield(.modelLoaded(request.model.id))
         }
+        recordTiming(.modelLoad, since: requestStarted)
+        let voiceStarted = ContinuousClock.now
 
         guard let loadedModel else {
             throw SynthesisError.modelNotInstalled
@@ -363,6 +372,7 @@ actor SynthesisActor: BackendSpeechSynthesizing {
             referenceText = anchorText
         }
 
+        recordTiming(.voicePreparation, since: voiceStarted)
         let usesShortChunks = ["orpheus", "orpheus_tts"].contains(request.model.modelType.lowercased())
         var chunks = try (usesShortChunks ? Self.orpheusChunker : chunker).chunks(
             for: request.cleanedText.text,
@@ -396,6 +406,12 @@ actor SynthesisActor: BackendSpeechSynthesizing {
 
             let start = ContinuousClock.now
             var chunkSamples = 0
+            var deliveryCount = 0
+            var previousDeliverySeconds = 0.0
+            var maximumDeliveryGap = 0.0
+            var initialGenerationDuration = 0.0
+            var initialAudioDuration = 0.0
+            var recentDeliveries: [(seconds: Double, audio: Double)] = []
             let conditionerBeforeChunk = conditioner
             let usesReference = referenceAudio != nil
                 && request.voiceMode != .randomPerParagraph
@@ -451,9 +467,39 @@ actor SynthesisActor: BackendSpeechSynthesizing {
                         speechStartOffset: Double(speechStartFrames)
                             / Double(loadedModel.sampleRate)
                     )
+                    if generatedSamples == 0 {
+                        recordTiming(.firstAudio, since: requestStarted)
+                    }
                     continuation.yield(.audio(audio))
                     chunkSamples += conditioned.count
                     generatedSamples += conditioned.count
+                    if loadedModel is DramaLibraryModel {
+                        // Observe existing output only; sampling and PCM stay unchanged.
+                        let elapsed = start.duration(to: .now)
+                        let seconds = Double(elapsed.components.seconds)
+                            + Double(elapsed.components.attoseconds) / 1e18
+                        let gap = max(seconds - previousDeliverySeconds, 0)
+                        previousDeliverySeconds = seconds
+                        maximumDeliveryGap = max(maximumDeliveryGap, gap)
+                        if deliveryCount == 0 {
+                            initialGenerationDuration = seconds
+                            initialAudioDuration = Double(conditioned.count) / Double(loadedModel.sampleRate)
+                        }
+                        deliveryCount += 1
+                        recentDeliveries.append((gap, Double(conditioned.count) / Double(loadedModel.sampleRate)))
+                        if recentDeliveries.count > 4 { recentDeliveries.removeFirst() }
+                        let recentSeconds = recentDeliveries.reduce(0) { $0 + $1.seconds }
+                        let recentAudio = recentDeliveries.reduce(0) { $0 + $1.audio }
+                        let delivered = Double(chunkSamples) / Double(loadedModel.sampleRate)
+                        continuation.yield(.progress(SynthesisProgress(
+                            chunkIndex: completedChunkCount, generatedAudioDuration: delivered,
+                            generationDuration: seconds, recentRealTimeFactor: recentSeconds / recentAudio,
+                            maximumAudioDuration: delivered, completedTextCharacters: 0,
+                            pendingTextCharacters: [], deliveredAudioPieces: deliveryCount,
+                            maximumDeliveryGap: maximumDeliveryGap,
+                            initialGenerationDuration: initialGenerationDuration,
+                            initialAudioDuration: initialAudioDuration)))
+                    }
                 }
 
                 if let omniVoice = loadedModel as? OmniVoiceModel,
@@ -509,6 +555,9 @@ actor SynthesisActor: BackendSpeechSynthesizing {
             if chunkCursor == chunks.count - 1 {
                 let tail = conditioner.finish()
                 if !tail.isEmpty {
+                    if generatedSamples == 0 {
+                        recordTiming(.firstAudio, since: requestStarted)
+                    }
                     continuation.yield(
                         .audio(
                             AudioChunk(
@@ -547,6 +596,7 @@ actor SynthesisActor: BackendSpeechSynthesizing {
         guard generatedSamples > 0 else {
             throw SynthesisError.generatedNoAudio
         }
+        recordTiming(.synthesisTotal, since: requestStarted)
         continuation.yield(.completed)
         continuation.finish()
     }
@@ -612,7 +662,7 @@ actor SynthesisActor: BackendSpeechSynthesizing {
         do {
             switch model.modelType.lowercased() {
             case "fish_omni":
-                candidate = try await Drama3Model.fromDirectory(modelURL)
+                candidate = try await DramaLibraryModel.fromDirectory(modelURL)
             case "omnivoice":
                 let hubCache = ProcessInfo.processInfo.environment[
                     "HF_HUB_CACHE"

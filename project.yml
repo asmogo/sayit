@@ -8,6 +8,8 @@ options:
   groupSortPosition: top
 
 packages:
+  DramaTTS:
+    path: Packages/DramaTTS
   PlaybackDSP:
     path: Packages/PlaybackDSP
   Sparkle:
@@ -15,7 +17,7 @@ packages:
     exactVersion: 2.9.6
   MLXAudio:
     url: https://github.com/Blaizzy/mlx-audio-swift.git
-    revision: bf14ae0c26e4e85553dd989571cae29d70fa6735
+    exactVersion: 0.1.5
   Hummingbird:
     url: https://github.com/hummingbird-project/hummingbird.git
     exactVersion: 2.22.0
@@ -82,6 +84,7 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: sh.sayit.mac.protocol
         PRODUCT_NAME: SayItProtocol
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
         SKIP_INSTALL: true
 
   SayItCore:
@@ -99,6 +102,7 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: sh.sayit.mac.core
         PRODUCT_NAME: SayItCore
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
         SKIP_INSTALL: true
 
   SayItBackend:
@@ -107,6 +111,10 @@ targets:
     sources:
       - path: Sources/SayItBackend
     dependencies:
+      - package: DramaTTS
+        product: DramaTTS
+      - package: DramaTTS
+        product: SpeechSynthesizer
       - package: PlaybackDSP
         product: PlaybackDSP
       - target: SayItCore
@@ -123,6 +131,7 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: sh.sayit.mac.backend
         PRODUCT_NAME: SayItBackend
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
         SKIP_INSTALL: true
 
   SayItXPC:
@@ -140,6 +149,7 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: sh.sayit.mac.xpc
         PRODUCT_NAME: SayItXPC
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
         SKIP_INSTALL: true
 
   SayItHTTP:

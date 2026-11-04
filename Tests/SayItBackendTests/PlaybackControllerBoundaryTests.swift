@@ -1,8 +1,82 @@
+import Foundation
 import Testing
+import SayItCore
+import SayItProtocol
 @testable import SayItBackend
 
 @Suite("Playback controller calculations")
 struct PlaybackControllerBoundaryTests {
+    @Test("Streaming startup uses delivered audio and resets across requests")
+    @MainActor
+    func streamingProgressLifecycle() throws {
+        let playback = PlaybackController()
+        defer { playback.stop() }
+        let requestID = UUID()
+        playback.setPlaybackMode(.adaptive, receivesWholeChunks: false)
+        playback.prepare(requestID: requestID, title: "Stream", estimatedDuration: 100, modelID: "stream-test")
+        try playback.enqueue(AudioChunk(requestID: requestID, index: 0,
+            samples: Array(repeating: 0, count: 32_000), sampleRate: 8000, startsParagraph: false))
+        #expect(!playback.shouldStartWhenBuffered)
+        let progress = SynthesisProgress(chunkIndex: 0, generatedAudioDuration: 4,
+            generationDuration: 1.6, recentRealTimeFactor: 0.4, maximumAudioDuration: 4,
+            completedTextCharacters: 0, pendingTextCharacters: [], deliveredAudioPieces: 6,
+            maximumDeliveryGap: 0.6)
+        playback.observeSynthesisProgress(progress)
+        #expect(playback.shouldStartWhenBuffered)
+        playback.stop()
+        playback.observeSynthesisProgress(progress)
+        #expect(!playback.shouldStartWhenBuffered)
+        playback.prepare(requestID: UUID(), title: "Next", estimatedDuration: 100, modelID: "stream-test")
+        #expect(!playback.shouldStartWhenBuffered)
+    }
+
+    @Test("Adaptive duration follows measured speech and resets for a new request")
+    @MainActor
+    func adaptiveDurationEstimate() {
+        let playback = PlaybackController()
+        defer { playback.stop() }
+        playback.setPlaybackMode(.adaptive, receivesWholeChunks: true)
+        playback.prepare(requestID: UUID(), title: "Timing", estimatedDuration: 100, modelID: "test")
+        playback.setSpokenText(String(repeating: "a", count: 200))
+        playback.appendSpokenChunk(PlaybackTextChunk(textStart: 0, textEnd: 50, audioStart: 0, audioEnd: 5))
+        playback.observeSynthesisMetrics(SynthesisMetrics(chunkIndex: 0, generationDuration: 6, audioDuration: 5))
+        #expect(playback.estimatedDuration == 20)
+        playback.prepare(requestID: UUID(), title: "Next", estimatedDuration: 30, modelID: "test")
+        playback.setSpokenText("New sentence")
+        #expect(playback.estimatedDuration == 30)
+        #expect(!playback.shouldStartWhenBuffered)
+    }
+
+    @Test("Live progress cannot reopen stopped playback or leak into the next request")
+    @MainActor
+    func progressLifecycle() throws {
+        let playback = PlaybackController()
+        defer { playback.stop() }
+        let requestID = UUID()
+        playback.setPlaybackMode(.adaptive, receivesWholeChunks: true)
+        playback.prepare(requestID: requestID, title: "Progress", estimatedDuration: 100, modelID: "test")
+        playback.setSpokenText(String(repeating: "a", count: 1000))
+        try playback.enqueue(AudioChunk(requestID: requestID, index: 0,
+            samples: Array(repeating: 0, count: 160_000), sampleRate: 8000, startsParagraph: false))
+        playback.observeSynthesisMetrics(SynthesisMetrics(chunkIndex: 1, generationDuration: 30, audioDuration: 10))
+        #expect(!playback.shouldStartWhenBuffered)
+        let progress = SynthesisProgress(chunkIndex: 2, generatedAudioDuration: 8,
+            generationDuration: 8, recentRealTimeFactor: 1, maximumAudioDuration: 28,
+            completedTextCharacters: 200, pendingTextCharacters: [100])
+        playback.observeSynthesisProgress(progress)
+        #expect(playback.shouldStartWhenBuffered)
+        playback.observeSynthesisProgress(SynthesisProgress(chunkIndex: 1, generatedAudioDuration: 3,
+            generationDuration: 50, recentRealTimeFactor: 20, maximumAudioDuration: 28,
+            completedTextCharacters: 100, pendingTextCharacters: [900]))
+        #expect(playback.shouldStartWhenBuffered, "Stale progress must be ignored")
+        playback.stop()
+        playback.observeSynthesisProgress(progress)
+        #expect(!playback.shouldStartWhenBuffered)
+        playback.prepare(requestID: UUID(), title: "Next", estimatedDuration: 100, modelID: "test")
+        playback.observeSynthesisProgress(progress)
+        #expect(!playback.shouldStartWhenBuffered)
+    }
+
     @Test("Playback buffer duration grows only above normal speed")
     @MainActor
     func preferredBufferDuration() {

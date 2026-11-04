@@ -25,9 +25,10 @@ struct CommunityModelResolverTests {
                 let model = try await resolver.resolve(repository: "owner/model", revision: nil, token: nil)
                 #expect(model.isSelectable)
                 #expect(model.capabilities.voiceCloning)
+                #expect(model.capabilities.streaming)
                 #expect(model.capabilities.voiceCloneRequirements?.transcriptRequired == true)
                 #expect(!model.capabilities.languageSelection)
-                #expect(model.playbackMode == .buffered)
+                #expect(model.playbackMode == .adaptive)
             } else {
                 await #expect(throws: ModelManagerError.self) {
                     try await resolver.resolve(repository: "owner/model", revision: nil, token: nil)
@@ -239,7 +240,8 @@ struct CommunityModelResolverTests {
         for (type, expectedMode, expectedVoice) in [
             ("kokoro_tts", PlaybackMode.progressive, "af_heart"),
             ("omnivoice", PlaybackMode.buffered, nil),
-            ("index_tts", PlaybackMode.buffered, nil)
+            ("index_tts", PlaybackMode.buffered, nil),
+            ("fish_omni", PlaybackMode.adaptive, nil)
         ] {
             let fixture = try TemporaryBackendFixture(
                 prefix: "SayItLocalModelTests"
@@ -253,12 +255,17 @@ struct CommunityModelResolverTests {
                 at: source.appending(path: "nested"),
                 withIntermediateDirectories: true
             )
-            try JSONSerialization.data(
-                withJSONObject: ["model_type": type]
-            ).write(to: source.appending(path: "config.json"))
+            var config: [String: Any] = ["model_type": type]
+            if type == "fish_omni" { config["quantization"] = ["bits": 4] }
+            try JSONSerialization.data(withJSONObject: config)
+                .write(to: source.appending(path: "config.json"))
             try Data(repeating: 7, count: 128).write(
                 to: source.appending(path: "nested/model.safetensors")
             )
+            if type == "fish_omni" {
+                try Data(repeating: 7, count: 128)
+                    .write(to: source.appending(path: "codec.safetensors"))
+            }
 
             let model = try await CommunityModelResolver().resolveLocal(
                 directory: source
@@ -267,6 +274,7 @@ struct CommunityModelResolverTests {
             #expect(model.repository == "local-import")
             #expect(model.modelType == type)
             #expect(model.playbackMode == expectedMode)
+            #expect(model.capabilities.streaming == ["kokoro_tts", "fish_omni"].contains(type))
             #expect(model.defaultVoice == expectedVoice)
             #expect(model.estimatedDiskBytes >= 128)
             #expect(model.id.rawValue.hasPrefix("community-local-"))

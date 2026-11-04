@@ -53,6 +53,7 @@ final class PlaybackController: BackendPlaybackControlling {
     private var audioConfigurationRecoveryGeneration = 0
     private var lastStablePlaybackTime: TimeInterval = 0
     private var playbackMode = PlaybackMode.progressive
+    private var receivesWholeChunks = false
     private var performanceByModelID: [
         String: SynthesisPerformanceEstimator
     ] = [:]
@@ -84,9 +85,22 @@ final class PlaybackController: BackendPlaybackControlling {
     var preferredStartBufferDuration: TimeInterval {
         bufferPolicy.preferredSourceLead
     }
+    private var awaitingAdaptiveMeasurement = false
+    private var spokenTextLength = 0
+    private var synthesisProgress: SynthesisProgress?
+    private var completedSynthesisChunkIndex = -1
     var shouldStartWhenBuffered: Bool {
-        guard state == .preparing || state == .buffering else {
+        guard !awaitingAdaptiveMeasurement,
+              state == .preparing || state == .buffering else {
             return false
+        }
+        if let synthesisProgress,
+           bufferPolicy.shouldStartStreaming(synthesisProgress, bufferedDuration: bufferedDuration) {
+            return true
+        }
+        if let synthesisProgress,
+           let lead = bufferPolicy.requiredProgressLead(synthesisProgress, completedAudioDuration: generatedDuration) {
+            return bufferedDuration >= lead
         }
         return bufferPolicy.shouldStart(
             synthesisIsComplete: synthesisIsComplete,
@@ -154,6 +168,9 @@ final class PlaybackController: BackendPlaybackControlling {
         modelID: String?
     ) {
         stop()
+        awaitingAdaptiveMeasurement = false
+        synthesisProgress = nil
+        completedSynthesisChunkIndex = -1
         self.requestID = requestID
         currentTitle = title
         currentModelID = modelID
@@ -182,6 +199,8 @@ final class PlaybackController: BackendPlaybackControlling {
             throw PlaybackError.emptyAudio
         }
         try pcmStore.append(chunk.samples)
+        synthesisProgress = nil
+        awaitingAdaptiveMeasurement = playbackMode == .adaptive && receivesWholeChunks
         generatedDuration = Double(pcmStore.frameCount) / sampleRate
         appendAmplitudeSamples(chunk.samples)
         try prepareAudioGraph(for: monoFormat(sampleRate: sampleRate))
@@ -194,6 +213,7 @@ final class PlaybackController: BackendPlaybackControlling {
 
     func setSpokenText(_ text: String) {
         spokenText = text
+        spokenTextLength = text.count
         spokenChunks = []
     }
 
@@ -206,10 +226,33 @@ final class PlaybackController: BackendPlaybackControlling {
     }
 
     func setPlaybackMode(_ mode: PlaybackMode) {
+        setPlaybackMode(mode, receivesWholeChunks: false)
+    }
+
+    func setPlaybackMode(_ mode: PlaybackMode, receivesWholeChunks: Bool) {
         playbackMode = mode
+        self.receivesWholeChunks = receivesWholeChunks
+    }
+
+    func observeSynthesisProgress(_ progress: SynthesisProgress) {
+        guard requestID != nil, progress.chunkIndex == completedSynthesisChunkIndex + 1,
+              progress.generationDuration >= (synthesisProgress?.generationDuration ?? 0),
+              progress.generatedAudioDuration >= (synthesisProgress?.generatedAudioDuration ?? 0) else { return }
+        synthesisProgress = progress
     }
 
     func observeSynthesisMetrics(_ metrics: SynthesisMetrics) {
+        synthesisProgress = nil
+        completedSynthesisChunkIndex = metrics.chunkIndex
+        awaitingAdaptiveMeasurement = false
+        // Refine the remaining duration with this request's observed speaking
+        // pace, rather than assuming every voice speaks 14 characters/second.
+        if playbackMode == .adaptive, receivesWholeChunks,
+           let chunk = spokenChunks.last, let audioEnd = chunk.audioEnd,
+           chunk.textEnd > 0, audioEnd > 0 {
+            estimatedDuration = max(generatedDuration,
+                audioEnd * Double(spokenTextLength) / Double(chunk.textEnd))
+        }
         guard let currentModelID else { return }
         var estimator = performanceByModelID[currentModelID]
             ?? SynthesisPerformanceEstimator()
@@ -775,7 +818,8 @@ final class PlaybackController: BackendPlaybackControlling {
             rate: rate,
             estimator: currentModelID.flatMap {
                 performanceByModelID[$0]
-            } ?? SynthesisPerformanceEstimator()
+            } ?? SynthesisPerformanceEstimator(),
+            receivesWholeChunks: receivesWholeChunks
         )
     }
 

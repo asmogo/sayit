@@ -12,7 +12,7 @@ struct ModelCatalogTests {
         #expect(catalog.models.first?.id == ModelID("kokoro-bf16"))
         #expect(catalog.models.allSatisfy { $0.revision.count == 40 })
         #expect(catalog.models.allSatisfy {
-            ["0.1.3", "bf14ae0", "bf14ae0 + SayIt native Drama 3"].contains($0.testedMLXAudioVersion)
+            ["0.1.3", "bf14ae0", "0.1.5 + DramaTTS 3.2.1"].contains($0.testedMLXAudioVersion)
         })
     }
 
@@ -23,8 +23,9 @@ struct ModelCatalogTests {
         #expect(models.map(\.id.rawValue) == ["fish-drama3-q4", "fish-drama3-q8"])
         #expect(models.allSatisfy { $0.stability == .experimental && $0.isSelectable })
         #expect(models.allSatisfy { $0.license.requiresAcceptance })
-        #expect(models.allSatisfy { $0.capabilities.voiceCloning && !$0.capabilities.streaming })
+        #expect(models.allSatisfy { $0.capabilities.voiceCloning && $0.capabilities.streaming })
         #expect(models.allSatisfy { $0.repository.hasPrefix("cguldogan/drama-3-mlx-") })
+        #expect(models.allSatisfy { $0.playbackMode == .adaptive })
         #expect(models[0].estimatedDiskBytes < models[1].estimatedDiskBytes)
     }
 

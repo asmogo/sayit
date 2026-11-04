@@ -18,6 +18,10 @@ fail() {
         linked_libraries=$(
             /usr/bin/otool -l "$binary_path" 2>/dev/null
         ) || continue
+        if printf '%s\n' "$linked_libraries" \
+            | /usr/bin/grep -E 'name /Library/Frameworks/SayIt[^/]*\.framework/' >/dev/null; then
+            fail "$binary_path references a system-installed SayIt framework instead of the embedded framework."
+        fi
         if ! printf '%s\n' "$linked_libraries" \
             | /usr/bin/awk '
                 $1 == "cmd" && $2 ~ /^LC_(LOAD|REEXPORT)_/ {

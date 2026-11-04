@@ -113,7 +113,7 @@ actor CommunityModelResolver {
                 presetVoices: defaultVoice != nil,
                 voiceDescription: voiceDesign,
                 voiceCloning: referenceOnly || rawType == "fish_omni",
-                streaming: progressive,
+                streaming: progressive || rawType == "fish_omni",
                 longForm: true,
                 languageSelection: rawType != "fish_omni",
                 requiresReferenceAudio: referenceOnly,
@@ -125,7 +125,7 @@ actor CommunityModelResolver {
                     transcriptRequired: true
                 ) : nil
             ),
-            playbackMode: progressive ? .progressive : .buffered,
+            playbackMode: rawType == "fish_omni" ? .adaptive : progressive ? .progressive : .buffered,
             files: [],
             estimatedDiskBytes: max(diskBytes, 1),
             estimatedPeakMemoryBytes: max(diskBytes * 2, 1_000_000_000),
@@ -138,7 +138,7 @@ actor CommunityModelResolver {
             ),
             stability: referenceOnly ? .unavailable : .experimental,
             testedMLXAudioVersion: rawType == "fish_omni"
-                ? "bf14ae0 + SayIt native Drama 3" : "0.1.3",
+                ? "0.1.5 + DramaTTS 3.2.1" : "0.1.3",
             testedDate: "Community model — not tested"
         )
     }
@@ -232,7 +232,7 @@ actor CommunityModelResolver {
                 presetVoices: defaultVoice != nil,
                 voiceDescription: voiceDesign,
                 voiceCloning: referenceOnly || rawType == "fish_omni",
-                streaming: progressive,
+                streaming: progressive || rawType == "fish_omni",
                 longForm: true,
                 languageSelection: rawType != "fish_omni",
                 requiresReferenceAudio: referenceOnly,
@@ -244,7 +244,7 @@ actor CommunityModelResolver {
                     transcriptRequired: true
                 ) : nil
             ),
-            playbackMode: progressive ? .progressive : .buffered,
+            playbackMode: rawType == "fish_omni" ? .adaptive : progressive ? .progressive : .buffered,
             files: [],
             estimatedDiskBytes: max(diskBytes, 1),
             estimatedPeakMemoryBytes: max(diskBytes * 2, 1_000_000_000),
@@ -257,7 +257,7 @@ actor CommunityModelResolver {
             ),
             stability: referenceOnly ? .unavailable : .experimental,
             testedMLXAudioVersion: rawType == "fish_omni"
-                ? "bf14ae0 + SayIt native Drama 3" : "0.1.3",
+                ? "0.1.5 + DramaTTS 3.2.1" : "0.1.3",
             testedDate: "Local model — not tested"
         )
     }

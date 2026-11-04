@@ -38,7 +38,3 @@ xcuserdata/
 *.gguf
 *.onnx
 *.safetensors
-
-# Tiny deterministic test fixtures, not downloaded model checkpoints.
-!Tests/SayItBackendTests/Fixtures/Drama3/*-weights.safetensors
-!Tests/SayItBackendTests/Fixtures/Drama3/*-expected.safetensors
