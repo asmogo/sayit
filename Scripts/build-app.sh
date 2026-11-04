@@ -4,6 +4,7 @@ set -eu
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 build_root="$project_root/Build"
 sign_identity="${SAYIT_SIGN_IDENTITY:--}"
+local_sign_identity="${SAYIT_LOCAL_SIGN_IDENTITY:--}"
 if [ "$sign_identity" = "-" ]; then
     default_derived_data="$build_root/DerivedData-Local"
 else
@@ -14,6 +15,15 @@ source_packages="$build_root/SourcePackages"
 module_cache="$build_root/ModuleCache"
 swiftpm_cache="$build_root/SwiftPMCache"
 app_root="$derived_data/Build/Products/Release/SayIt.app"
+# Keep a previously chosen local certificate on later rebuilds. Falling back to
+# ad-hoc signing would invalidate the helper's Accessibility identity again.
+if [ "$sign_identity" = "-" ] && [ -z "${SAYIT_LOCAL_SIGN_IDENTITY+x}" ] && [ -d "$app_root" ]; then
+    previous_local_identity=$(codesign --display --verbose=4 "$app_root" 2>&1 \
+        | sed -n 's/^Authority=//p' | head -n 1)
+    if [ -n "$previous_local_identity" ]; then
+        local_sign_identity="$previous_local_identity"
+    fi
+fi
 disable_secure_timestamp="${SAYIT_DISABLE_SECURE_TIMESTAMP:-NO}"
 update_feed_url="${SAYIT_UPDATE_FEED_URL:-https://github.com/callebtc/sayit/releases/latest/download/appcast.xml}"
 build_jobs="${SAYIT_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf '1')}"
@@ -44,8 +54,16 @@ fi
 
 mkdir -p "$source_packages" "$module_cache" "$swiftpm_cache"
 
-xcodegen generate --spec "$project_root/project.yml" \
-    --project "$project_root"
+xcodegen_output=$("${SAYIT_XCODEGEN:-xcodegen}" generate --spec "$project_root/project.yml" \
+    --project "$project_root" 2>&1) || {
+    printf '%s\n' "$xcodegen_output" >&2
+    exit 1
+}
+printf '%s\n' "$xcodegen_output"
+if printf '%s\n' "$xcodegen_output" | grep -E 'No ".*" settings found' >/dev/null; then
+    echo "XcodeGen is missing its settings presets. Set SAYIT_XCODEGEN to a complete installation." >&2
+    exit 1
+fi
 
 build() {
     echo "Building Say It (Release)…"
@@ -76,7 +94,9 @@ build() {
 
 if [ "$sign_identity" = "-" ]; then
     # Xcode requires a provisioning profile for app-group entitlements, even
-    # for an ad-hoc identity. Build unsigned, then sign the complete local app.
+    # for a local identity. Build unsigned, then sign the complete local app.
+    # A certificate-backed local signature preserves code identity across builds
+    # without switching bundle IDs, model storage, or provisioning profiles.
     local_identifier=sh.sayit.mac.local
     local_display_name="Say It Local"
     local_selection_identifier=sh.sayit.mac.selection-helper.local
@@ -98,7 +118,9 @@ if [ "$sign_identity" = "-" ]; then
         SAYIT_LOCAL_SWIFT_FLAG="$local_swift_flags" \
         SWIFT_COMPILATION_MODE="${SAYIT_SWIFT_COMPILATION_MODE:-singlefile}"
 
-    codesign --force --deep --sign - "$app_root"
+    codesign --force --sign "$local_sign_identity" \
+        "$app_root/Contents/Helpers/SayItSelectionAgent"
+    codesign --force --deep --sign "$local_sign_identity" "$app_root"
 else
     code_sign_flags=
     if [ "$disable_secure_timestamp" = "YES" ]; then

@@ -87,6 +87,7 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: sh.sayit.mac.protocol
         PRODUCT_NAME: SayItProtocol
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
         SKIP_INSTALL: true
 
   SayItCore:
@@ -104,6 +105,7 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: sh.sayit.mac.core
         PRODUCT_NAME: SayItCore
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
         SKIP_INSTALL: true
 
   SayItBackend:
@@ -128,6 +130,7 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: sh.sayit.mac.backend
         PRODUCT_NAME: SayItBackend
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
         SKIP_INSTALL: true
 
   SayItXPC:
@@ -145,6 +148,7 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: sh.sayit.mac.xpc
         PRODUCT_NAME: SayItXPC
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
         SKIP_INSTALL: true
 
   SayItHTTP:
@@ -170,6 +174,7 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: sh.sayit.mac.http
         PRODUCT_NAME: SayItHTTP
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
         SKIP_INSTALL: true
     postBuildScripts:
       - name: Use Shared NIOCore Framework
@@ -224,6 +229,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: sh.sayit.mac.agent
         PRODUCT_NAME: SayItAgent
         PROVISIONING_PROFILE_SPECIFIER: Say It Agent Developer ID
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
         SKIP_INSTALL: true
 
   SayItSelectionAgent:
@@ -280,6 +286,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: sh.sayit.mac.cli
         PRODUCT_NAME: SayItCLI
         PROVISIONING_PROFILE_SPECIFIER: Say It CLI Developer ID
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
         SKIP_INSTALL: true
 
   SayIt:
