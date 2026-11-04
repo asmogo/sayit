@@ -8,11 +8,11 @@ struct ModelCatalogTests {
     func bundledCatalogIsValid() throws {
         let catalog = try ModelCatalogLoader().bundledCatalog()
 
-        #expect(catalog.models.count == 24)
+        #expect(catalog.models.count == 26)
         #expect(catalog.models.first?.id == ModelID("phonon-31m-en"))
         #expect(catalog.models.allSatisfy { $0.revision.count == 40 })
         #expect(catalog.models.allSatisfy {
-            ["0.1.3", "bf14ae0", "624fd54"].contains($0.testedMLXAudioVersion)
+            ["0.1.3", "bf14ae0", "624fd54", "624fd54 + DramaTTS 3.2.1"].contains($0.testedMLXAudioVersion)
         })
     }
 
@@ -55,6 +55,19 @@ struct ModelCatalogTests {
         #expect(model.files.allSatisfy { $0.sha256?.count == 64 })
         #expect(model.files.contains { $0.path == "default-voice.safetensors" })
         #expect(!model.files.contains { $0.path.hasSuffix(".gguf") })
+    }
+
+    @Test("Drama 3 conversions are pinned, experimental and native local models")
+    func drama3Variants() throws {
+        let models = try ModelCatalogLoader().bundledCatalog().models
+            .filter { $0.modelType == "fish_omni" }
+        #expect(models.map(\.id.rawValue) == ["fish-drama3-q4", "fish-drama3-q8"])
+        #expect(models.allSatisfy { $0.stability == .experimental && $0.isSelectable })
+        #expect(models.allSatisfy { $0.license.requiresAcceptance })
+        #expect(models.allSatisfy { $0.capabilities.voiceCloning && $0.capabilities.streaming })
+        #expect(models.allSatisfy { $0.repository.hasPrefix("cguldogan/drama-3-mlx-") })
+        #expect(models.allSatisfy { $0.playbackMode == .adaptive })
+        #expect(models[0].estimatedDiskBytes < models[1].estimatedDiskBytes)
     }
 
     @Test("Hands-on recommendations lead the ranked catalog")

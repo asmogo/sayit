@@ -3,6 +3,7 @@ set -eu
 
 app_root=${1:?Usage: validate-package-linkage.sh /path/to/SayIt.app}
 nio_metadata_symbol='_$s7NIOCore10ByteBufferVMn'
+tokenizer_metadata_symbol='_$s10Tokenizers13BertTokenizerCMn'
 
 fail() {
     echo "Package linkage validation failed: $*" >&2
@@ -18,17 +19,29 @@ fail() {
         linked_libraries=$(
             /usr/bin/otool -l "$binary_path" 2>/dev/null
         ) || continue
+        # Inspect dependencies, excluding the library's own LC_ID_DYLIB name.
+        linked_libraries=$(printf '%s\n' "$linked_libraries" | /usr/bin/awk '
+            $1 == "cmd" && $2 ~ /^LC_(LOAD|REEXPORT)_/ {
+                reading_load = 1
+                next
+            }
+            reading_load && $1 == "name" {
+                print $2
+                reading_load = 0
+            }
+        ')
+        if printf '%s\n' "$linked_libraries" \
+            | /usr/bin/grep -E '^/Library/Frameworks/SayIt[^/]*\.framework/' >/dev/null; then
+            fail "$binary_path references a system-installed SayIt framework instead of the embedded framework."
+        fi
+        if printf '%s\n' "$linked_libraries" \
+            | /usr/bin/grep -E '^@rpath/Transformers_[^/]*_PackageProduct\.framework/' >/dev/null; then
+            if /usr/bin/nm --defined-only "$binary_path" 2>/dev/null \
+                | /usr/bin/grep -F "$tokenizer_metadata_symbol" >/dev/null; then
+                fail "$binary_path both defines Tokenizers metadata and links the shared Transformers framework."
+            fi
+        fi
         if ! printf '%s\n' "$linked_libraries" \
-            | /usr/bin/awk '
-                $1 == "cmd" && $2 ~ /^LC_(LOAD|REEXPORT)_/ {
-                    reading_load = 1
-                    next
-                }
-                reading_load && $1 == "name" {
-                    print $2
-                    reading_load = 0
-                }
-            ' \
             | /usr/bin/grep -E \
                 '/NIOCore_[^/]*_PackageProduct\.framework/' >/dev/null; then
             continue

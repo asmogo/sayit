@@ -8,6 +8,8 @@ options:
   groupSortPosition: top
 
 packages:
+  DramaTTS:
+    path: Packages/DramaTTS
   PlaybackDSP:
     path: Packages/PlaybackDSP
   Sparkle:
@@ -112,6 +114,10 @@ targets:
     sources:
       - path: Sources/SayItBackend
     dependencies:
+      - package: DramaTTS
+        product: DramaTTS
+      - package: DramaTTS
+        product: SpeechSynthesizer
       - package: PlaybackDSP
         product: PlaybackDSP
       - target: SayItCore
